@@ -76,6 +76,67 @@
 
 #include "mmu/spte.h"
 
+/* === CMPE283 Assignment 2: VM-exit statistics (VMX) ===================== */
+#include <linux/atomic.h>
+
+#ifndef VMX_MAX_EXIT_REASON
+#define VMX_MAX_EXIT_REASON 256   /* big enough for all current reasons */
+#endif
+
+static atomic64_t vmx_exit_counts[VMX_MAX_EXIT_REASON];
+static atomic64_t vmx_total_exits;
+
+/* Human-readable names for common VMX exit reasons (indices are hardware codes) */
+static const char * const vmx_exit_reason_names[VMX_MAX_EXIT_REASON] = {
+    [0]   = "EXCEPTION_NMI",
+    [1]   = "EXTERNAL_INTERRUPT",
+    [2]   = "TRIPLE_FAULT",
+    [7]   = "PENDING_INTERRUPT",
+    [9]   = "NMI_WINDOW",
+    [10]  = "TASK_SWITCH",
+    [12]  = "CPUID",
+    [18]  = "HLT",
+    [19]  = "INVD",
+    [20]  = "INVLPG",
+    [28]  = "VMCALL",
+    [30]  = "IO_INSTRUCTION",
+    [31]  = "RDMSR",
+    [32]  = "WRMSR",
+    [48]  = "EPT_VIOLATION",
+    [49]  = "EPT_MISCONFIG",
+    [51]  = "INVEPT",
+    [55]  = "RDTSCP",
+    [59]  = "WBINVD",
+    [62]  = "XSETBV",
+    [63]  = "APIC_WRITE",
+    [66]  = "RDRAND",
+    [67]  = "INVVPID",
+    [72]  = "PAUSE",
+    /* ...unknown/unused entries will print as "UNKNOWN" */
+};
+
+/* Helper used every 10k exits to dump nonzero counts */
+static void cmpe283_vmx_dump_exit_stats(void)
+{
+    u64 total = atomic64_read(&vmx_total_exits);
+
+    if (total && (total % 10000ULL == 0ULL)) {
+        int i;
+        pr_info("CMPE283: VMX exit stats after %llu total exits:\n", total);
+        for (i = 0; i < VMX_MAX_EXIT_REASON; i++) {
+            u64 c = atomic64_read(&vmx_exit_counts[i]);
+            if (!c)
+                continue;
+            pr_info("  reason=%d (%s) count=%llu\n",
+                    i,
+                    vmx_exit_reason_names[i] ? vmx_exit_reason_names[i] : "UNKNOWN",
+                    c);
+        }
+    }
+}
+
+/* === end CMPE283 instrumentation ======================================= */
+
 MODULE_AUTHOR("Qumranet");
 MODULE_DESCRIPTION("KVM support for VMX (Intel VT-x) extensions");
 MODULE_LICENSE("GPL");
@@ -6478,6 +6539,15 @@ static int __vmx_handle_exit(struct kvm_vcpu *vcpu, fastpath_t exit_fastpath)
 	union vmx_exit_reason exit_reason = vmx_get_exit_reason(vcpu);
 	u32 vectoring_info = vmx->idt_vectoring_info;
 	u16 exit_handler_index;
+	u32 cmpe283_exit_reason  = exit_reason.basic;
+
+	/* CMPE283: count each VM-exit and total */
+	if (cmpe283_exit_reason < VMX_MAX_EXIT_REASON)
+		 atomic64_inc(&vmx_exit_counts[cmpe283_exit_reason]);
+    	atomic64_inc(&vmx_total_exits);
+	cmpe283_vmx_dump_exit_stats();
+
+	/* END CMPE283: count each VM-exit and total */
 
 	/*
 	 * Flush logged GPAs PML buffer, this will make dirty_bitmap more
