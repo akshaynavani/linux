@@ -1,5 +1,8 @@
 # Steps used to complete the assignment
 
+#### The Steps to complete this task are documented in detail along with the screenshots in the pdf below :
+### [CMPE-283_Assignment_2.pdf](https://github.com/user-attachments/files/23406731/CMPE-283_Assignment_2.pdf)
+
 # Q. Comment on the frequency of exits – does the number of exits increase at a stable rate? Or are there more exits performed during certain VM operations? Approximately how many exits does a full VM boot entail?
 
 The Number of exits do not increase at a stable rate, instead the exit rate is **bursty** 
@@ -22,4 +25,4 @@ and tied to what the guest is doing.
     - **RDTSCP (#55)**: 3 (~0.0005%) and HLT (#18): 7 (~0.001%) - essentially negligible in our workload.
     - **EPT_VIOLATION (#48)**: ~1,156 (~0.19%) - low after initial memory mapping settles.
     - **RDMSR (#31)**: ~2,745 (~0.46%), **WRMSR (#32)**: ~2,212 (~0.37%) - relatively infrequent.
-    - “Unknown” categories (e.g., #52 ~4,811 (~0.8%)) are minor overall;
+    - **“Unknown”** categories (e.g., #52 ~4,811 (~0.8%)) are minor overall;
